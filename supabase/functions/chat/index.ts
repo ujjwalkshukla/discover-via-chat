@@ -23,6 +23,9 @@ interface VideoResult {
   similarity: number;
 }
 
+// Access Supabase AI from globalThis
+const session = new (globalThis as any).Supabase.ai.Session("gte-small");
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -48,36 +51,28 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Step 1: Generate embedding for the user's message
-    const embeddingResponse = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        input: message,
-        model: "text-embedding-3-small",
-      }),
+    // Step 1: Generate embedding for the user's message using gte-small
+    console.log("Generating embedding for user query:", message);
+    const embedding = await session.run(message, {
+      mean_pool: true,
+      normalize: true,
     });
 
     let matchedVideos: VideoResult[] = [];
 
-    if (embeddingResponse.ok) {
-      const embeddingData = await embeddingResponse.json();
-      const embedding = embeddingData.data?.[0]?.embedding;
+    if (embedding) {
+      // Step 2: Vector similarity search
+      const { data: videos, error } = await supabase.rpc("match_videos", {
+        query_embedding: JSON.stringify(embedding),
+        match_threshold: 0.2,
+        match_count: 10,
+      });
 
-      if (embedding) {
-        // Step 2: Vector similarity search
-        const { data: videos, error } = await supabase.rpc("match_videos", {
-          query_embedding: embedding,
-          match_threshold: 0.3,
-          match_count: 10,
-        });
-
-        if (!error && videos) {
-          matchedVideos = videos as VideoResult[];
-        }
+      if (error) {
+        console.error("Vector search error:", error);
+      } else if (videos) {
+        matchedVideos = videos as VideoResult[];
+        console.log(`Found ${matchedVideos.length} matching videos`);
       }
     }
 
