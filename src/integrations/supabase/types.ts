@@ -97,6 +97,51 @@ export type Database = {
         }
         Relationships: []
       }
+      content_staging: {
+        Row: {
+          category: string | null
+          created_at: string
+          difficulty: string | null
+          duration_sec: number | null
+          id: string
+          platform: string | null
+          show: string | null
+          subcategory: string | null
+          tags: string | null
+          video_description: string | null
+          video_title: string | null
+          video_url: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          difficulty?: string | null
+          duration_sec?: number | null
+          id?: string
+          platform?: string | null
+          show?: string | null
+          subcategory?: string | null
+          tags?: string | null
+          video_description?: string | null
+          video_title?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          difficulty?: string | null
+          duration_sec?: number | null
+          id?: string
+          platform?: string | null
+          show?: string | null
+          subcategory?: string | null
+          tags?: string | null
+          video_description?: string | null
+          video_title?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       saved_videos: {
         Row: {
           created_at: string

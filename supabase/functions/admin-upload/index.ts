@@ -31,7 +31,7 @@ serve(async (req) => {
       case "category": {
         const { data: category, error } = await supabase
           .from("categories")
-          .insert({ name: data.name, description: data.description })
+          .upsert({ name: data.name, description: data.description }, { onConflict: 'name' })
           .select()
           .single();
         
@@ -43,11 +43,11 @@ serve(async (req) => {
       case "subcategory": {
         const { data: subcategory, error } = await supabase
           .from("subcategories")
-          .insert({ 
+          .upsert({ 
             category_id: data.category_id, 
             name: data.name, 
             description: data.description 
-          })
+          }, { onConflict: 'name' })
           .select()
           .single();
         
@@ -59,12 +59,12 @@ serve(async (req) => {
       case "show": {
         const { data: show, error } = await supabase
           .from("shows")
-          .insert({ 
+          .upsert({ 
             subcategory_id: data.subcategory_id, 
             name: data.name, 
             description: data.description,
             thumbnail_url: data.thumbnail_url,
-          })
+          }, { onConflict: 'name' })
           .select()
           .single();
         
