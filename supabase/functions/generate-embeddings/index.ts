@@ -6,19 +6,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Access Supabase AI from globalThis
+const session = new (globalThis as any).Supabase.ai.Session("gte-small");
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -50,33 +48,11 @@ serve(async (req) => {
       try {
         console.log(`Generating embedding for video: ${video.title}`);
         
-        const embeddingResponse = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            input: textToEmbed,
-            model: "text-embedding-3-small",
-          }),
+        // Generate embedding using gte-small model
+        const embedding = await session.run(textToEmbed, {
+          mean_pool: true,
+          normalize: true,
         });
-
-        if (!embeddingResponse.ok) {
-          const errorText = await embeddingResponse.text();
-          console.error(`Embedding API error for ${video.title}: ${errorText}`);
-          errors.push(`${video.title}: ${errorText}`);
-          continue;
-        }
-
-        const embeddingData = await embeddingResponse.json();
-        const embedding = embeddingData.data?.[0]?.embedding;
-
-        if (!embedding) {
-          console.error(`No embedding returned for ${video.title}`);
-          errors.push(`${video.title}: No embedding in response`);
-          continue;
-        }
 
         // Update the video with the embedding
         const { error: updateError } = await supabase

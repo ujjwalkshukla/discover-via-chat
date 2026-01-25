@@ -11,6 +11,9 @@ interface AdminUploadRequest {
   data: Record<string, unknown>;
 }
 
+// Access Supabase AI from globalThis
+const session = new (globalThis as any).Supabase.ai.Session("gte-small");
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,7 +22,6 @@ serve(async (req) => {
   try {
     const { type, data } = (await req.json()) as AdminUploadRequest;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -74,43 +76,21 @@ serve(async (req) => {
       }
 
       case "video": {
-        // Generate embedding for video content
+        // Generate embedding for video content using gte-small
         let embedding = null;
         
-        if (LOVABLE_API_KEY) {
-          const textToEmbed = `${data.title} ${data.description || ''}`.trim();
-          
-          console.log(`Generating embedding for: ${textToEmbed}`);
-          
-          try {
-            const embeddingResponse = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                input: textToEmbed,
-                model: "text-embedding-3-small",
-              }),
-            });
-
-            if (embeddingResponse.ok) {
-              const embeddingData = await embeddingResponse.json();
-              embedding = embeddingData.data?.[0]?.embedding;
-              if (embedding) {
-                embedding = JSON.stringify(embedding);
-                console.log("Embedding generated successfully");
-              }
-            } else {
-              const errorText = await embeddingResponse.text();
-              console.error("Embedding API error:", errorText);
-            }
-          } catch (e) {
-            console.error("Embedding generation failed:", e);
-          }
-        } else {
-          console.error("LOVABLE_API_KEY is not configured");
+        const textToEmbed = `${data.title} ${data.description || ''}`.trim();
+        
+        console.log(`Generating embedding for: ${textToEmbed}`);
+        
+        try {
+          embedding = await session.run(textToEmbed, {
+            mean_pool: true,
+            normalize: true,
+          });
+          console.log("Embedding generated successfully");
+        } catch (e) {
+          console.error("Embedding generation failed:", e);
         }
 
         const { data: video, error } = await supabase
@@ -124,7 +104,7 @@ serve(async (req) => {
             duration: data.duration || 0,
             difficulty: data.difficulty || "beginner",
             order_index: data.order_index || 0,
-            embedding: embedding,
+            embedding: embedding ? JSON.stringify(embedding) : null,
           })
           .select()
           .single();
