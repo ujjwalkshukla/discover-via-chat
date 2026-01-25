@@ -78,7 +78,9 @@ serve(async (req) => {
         let embedding = null;
         
         if (LOVABLE_API_KEY) {
-          const textToEmbed = `${data.title} ${data.description || ''}`;
+          const textToEmbed = `${data.title} ${data.description || ''}`.trim();
+          
+          console.log(`Generating embedding for: ${textToEmbed}`);
           
           try {
             const embeddingResponse = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
@@ -96,10 +98,19 @@ serve(async (req) => {
             if (embeddingResponse.ok) {
               const embeddingData = await embeddingResponse.json();
               embedding = embeddingData.data?.[0]?.embedding;
+              if (embedding) {
+                embedding = JSON.stringify(embedding);
+                console.log("Embedding generated successfully");
+              }
+            } else {
+              const errorText = await embeddingResponse.text();
+              console.error("Embedding API error:", errorText);
             }
           } catch (e) {
             console.error("Embedding generation failed:", e);
           }
+        } else {
+          console.error("LOVABLE_API_KEY is not configured");
         }
 
         const { data: video, error } = await supabase
