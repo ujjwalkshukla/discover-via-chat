@@ -1,24 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Loader2, CheckCircle, LogIn } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Category, Subcategory, Show } from "@/types";
-import type { User } from "@supabase/supabase-js";
 
 export default function AdminPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
@@ -39,47 +35,8 @@ export default function AdminPage() {
   });
 
   useEffect(() => {
-    checkAuthAndRole();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await checkAdminRole(session.user.id);
-      } else {
-        setIsAdmin(false);
-      }
-      setIsCheckingAuth(false);
-    });
-
-    return () => subscription.unsubscribe();
+    fetchData();
   }, []);
-
-  const checkAuthAndRole = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setUser(session?.user ?? null);
-    
-    if (session?.user) {
-      await checkAdminRole(session.user.id);
-      fetchData();
-    }
-    setIsCheckingAuth(false);
-  };
-
-  const checkAdminRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    
-    if (error) {
-      console.error("Error checking admin role:", error);
-      setIsAdmin(false);
-    } else {
-      setIsAdmin(!!data);
-    }
-  };
 
   const fetchData = async () => {
     const [catRes, subRes, showRes] = await Promise.all([
@@ -96,19 +53,13 @@ export default function AdminPage() {
   const handleSubmit = async (type: string, data: Record<string, unknown>) => {
     setIsLoading(true);
     try {
-      // Get the current session for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("You must be logged in to perform this action");
-      }
-
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-upload`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({ type, data }),
         }
@@ -152,100 +103,6 @@ export default function AdminPage() {
     ? subcategories
     : subcategories;
 
-  // Loading state
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Not logged in
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border/50 glass sticky top-0 z-10">
-          <div className="container flex items-center h-14 px-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Chat
-            </Button>
-            <h1 className="font-display font-bold ml-4">Admin Upload</h1>
-          </div>
-        </header>
-        <main className="container px-4 py-6 max-w-md mx-auto">
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="font-display flex items-center gap-2">
-                <LogIn className="w-5 h-5" />
-                Authentication Required
-              </CardTitle>
-              <CardDescription>
-                You must be logged in with an admin account to access this page.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Please sign in to continue. If you don't have an admin account, contact the system administrator.
-              </p>
-              <Button onClick={() => navigate("/")} className="w-full">
-                Go to Home
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  // Not an admin
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border/50 glass sticky top-0 z-10">
-          <div className="container flex items-center h-14 px-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Chat
-            </Button>
-            <h1 className="font-display font-bold ml-4">Admin Upload</h1>
-          </div>
-        </header>
-        <main className="container px-4 py-6 max-w-md mx-auto">
-          <Card className="glass border-destructive/50">
-            <CardHeader>
-              <CardTitle className="font-display text-destructive">
-                Access Denied
-              </CardTitle>
-              <CardDescription>
-                You don't have permission to access the admin panel.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Your account ({user.email}) does not have admin privileges. Contact the system administrator if you need access.
-              </p>
-              <Button onClick={() => navigate("/")} className="w-full">
-                Go to Home
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -261,9 +118,6 @@ export default function AdminPage() {
             Back to Chat
           </Button>
           <h1 className="font-display font-bold ml-4">Admin Upload</h1>
-          <span className="ml-auto text-sm text-muted-foreground">
-            Logged in as {user.email}
-          </span>
         </div>
       </header>
 
