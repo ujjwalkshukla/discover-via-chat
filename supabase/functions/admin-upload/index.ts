@@ -20,18 +20,81 @@ serve(async (req) => {
   }
 
   try {
-    const { type, data } = (await req.json()) as AdminUploadRequest;
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    // ============================================
+    // SECURITY: Authenticate and authorize the user
+    // ============================================
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Missing or invalid authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create a client with the user's token to verify their identity
+    const userSupabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("Auth error:", claimsError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: No user ID in token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use service role client to check admin role (bypasses RLS)
+    const serviceSupabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    
+    const { data: roleData, error: roleError } = await serviceSupabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (roleError) {
+      console.error("Role check error:", roleError);
+      return new Response(
+        JSON.stringify({ error: "Internal error checking permissions" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!roleData) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============================================
+    // User is authenticated and authorized as admin
+    // Proceed with the upload operation
+    // ============================================
+    const { type, data } = (await req.json()) as AdminUploadRequest;
 
     let result;
 
     switch (type) {
       case "category": {
-        const { data: category, error } = await supabase
+        const { data: category, error } = await serviceSupabase
           .from("categories")
           .upsert({ name: data.name, description: data.description }, { onConflict: 'name' })
           .select()
@@ -43,7 +106,7 @@ serve(async (req) => {
       }
 
       case "subcategory": {
-        const { data: subcategory, error } = await supabase
+        const { data: subcategory, error } = await serviceSupabase
           .from("subcategories")
           .upsert({ 
             category_id: data.category_id, 
@@ -59,7 +122,7 @@ serve(async (req) => {
       }
 
       case "show": {
-        const { data: show, error } = await supabase
+        const { data: show, error } = await serviceSupabase
           .from("shows")
           .upsert({ 
             subcategory_id: data.subcategory_id, 
@@ -93,7 +156,7 @@ serve(async (req) => {
           console.error("Embedding generation failed:", e);
         }
 
-        const { data: video, error } = await supabase
+        const { data: video, error } = await serviceSupabase
           .from("videos")
           .insert({ 
             show_id: data.show_id, 
