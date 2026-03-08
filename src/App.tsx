@@ -15,7 +15,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename="/discover-via-chat/">
         <Routes>
           <Route path="/" element={<ChatPage />} />
           <Route path="/video/:id" element={<VideoPlayerPage />} />
