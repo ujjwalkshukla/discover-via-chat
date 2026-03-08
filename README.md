@@ -1,73 +1,145 @@
-# Welcome to your Lovable project
+# InVideo AI Assistant
 
-## Project info
+An AI first video discovery system that replaces traditional search and browsing with a conversational assistant. Instead of navigating complex content catalogs, users interact with an AI chat interface that understands their intent and recommends relevant videos from the library.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+This prototype demonstrates how Retrieval Augmented Generation (RAG) can power intelligent content discovery for a paid video learning platform while ensuring all recommendations are grounded in the actual catalog.
 
-## How can I edit this code?
+**Working Prototype:**
 
-There are several ways of editing your application.
+**GitHub URL**:https://ujjwalkshukla.github.io/discover-via-chat/
 
-**Use Lovable**
+**Lovable**: [https://discover-via-chat.lovable.app](https://discover-via-chat.lovable.app)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+# Overview
 
-**Use your preferred IDE**
+Modern video libraries often organize content in deep taxonomies such as category, subcategory, show, and video. As catalogs grow, this structure becomes difficult for users to navigate because they may not know where their problem fits.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+The InVideo AI Assistant replaces navigation and search with a conversational discovery layer.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Users simply describe their problem or goal and the assistant:
 
-Follow these steps:
+1. Understands the user’s intent using embeddings and semantic search
+2. Retrieves relevant videos from the catalog database
+3. Uses an LLM to reason over retrieved results
+4. Recommends the most relevant videos with explanations
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+The result is a **chat to play experience** where content discovery becomes fast, intuitive, and problem driven.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Key Features
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### AI First Discovery
 
-**Edit a file directly in GitHub**
+The assistant acts as the primary interface for discovering content. There is no search bar. Users interact through natural language queries.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Semantic Video Retrieval
 
-**Use GitHub Codespaces**
+User queries are converted into embeddings and matched against catalog embeddings using pgvector similarity search.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Catalog Grounded Recommendations
 
-## What technologies are used for this project?
+The assistant can only recommend videos that exist in the database. This prevents hallucinated content and ensures trust in a paid subscription environment.
 
-This project is built with:
+### Conversational Learning Experience
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The assistant can clarify intent, suggest follow up questions, and guide users toward relevant content.
 
-## How can I deploy this project?
+### Instant Video Playback
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Recommended videos appear as cards inside chat and can be played immediately with one click.
 
-## Can I connect a custom domain to my Lovable project?
+### Save for Later
 
-Yes, you can!
+Users can save recommended videos for later viewing.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# Architecture
+
+The system is built using a Retrieval Augmented Generation pipeline.
+
+**Frontend**
+React chat interface built with Vite and shadcn UI.
+
+**Backend**
+Supabase Postgres with Edge Functions for orchestration.
+
+**Vector Search**
+pgvector extension for semantic similarity retrieval.
+
+**Embedding Model**
+Supabase built in gte small embedding model with 384 dimensional vectors.
+
+**LLM**
+Gemini Flash accessed through the Lovable AI Gateway.
+
+**Retrieval Flow**
+
+User Query
+→ Generate Query Embedding
+→ Semantic Search using pgvector
+→ Retrieve Candidate Videos
+→ Send Candidates to Gemini
+→ Gemini selects best videos and explains reasoning
+→ UI renders video cards
+
+This ensures the assistant remains **fully grounded in the catalog database**.
+
+---
+
+# Data Model
+
+The content catalog follows a hierarchical structure:
+
+Category → Subcategory → Show → Video
+
+Videos store embeddings used for semantic retrieval. Additional tables store chat sessions, messages, and saved videos to support conversational discovery.
+
+---
+
+# Retrieval Augmented Generation
+
+RAG is the core mechanism that powers the assistant.
+
+Without retrieval, the LLM could fabricate recommendations. In a paid product this destroys trust.
+
+With RAG:
+
+• The database is the single source of truth
+• The assistant only reasons over retrieved videos
+• Every recommendation references a real video ID
+
+This ensures reliable and explainable recommendations.
+
+---
+
+# Delight Feature (Post Analyzer)
+
+The system also includes a prototype extension where the assistant can analyze user generated social media posts.
+
+Instead of only recommending videos, the assistant can:
+
+• Analyze captions or scripts
+• Identify weaknesses such as poor hooks or unclear CTAs
+• Suggest improved hooks, captions, and calls to action
+• Recommend relevant learning videos from the catalog
+
+This transforms the assistant from a discovery tool into a **growth mentor for creators**.
+
+---
+
+# Why This Project Matters
+
+Traditional content libraries rely on navigation and search, which become ineffective as catalogs grow.
+
+This prototype explores a different model where:
+
+AI replaces navigation
+Intent replaces taxonomy
+Conversation replaces browsing
+
+The result is a discovery system that scales naturally as the catalog expands while improving engagement and reducing time to value for users.
+
